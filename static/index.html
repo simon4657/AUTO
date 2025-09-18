@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台股自動下單系統 - 交易監控儀表板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .status-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 5px solid #28a745;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .parameters-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .parameters-section h2 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        .current-values {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .current-values h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+
+        .current-values pre {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 14px;
+            border: 1px solid #bbdefb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .controls {
+                justify-content: center;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 台股自動下單系統</h1>
+            <p>智能交易監控儀表板</p>
+        </div>
+
+        <div class="content">
+            <!-- 系統狀態區域 -->
+            <div class="status-section">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">系統運行中</span>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-success" onclick="startStrategy()">▶️ 啟動策略</button>
+                    <button class="btn btn-danger" onclick="stopStrategy()">⏹️ 停止策略</button>
+                    <button class="btn btn-primary" onclick="refreshStatus()">🔄 刷新狀態</button>
+                </div>
+            </div>
+
+            <!-- 參數設定區域 -->
+            <div class="parameters-section">
+                <h2>📊 交易參數設定</h2>
+                <div id="loadingIndicator" class="loading">
+                    <div class="spinner"></div>
+                    <p>載入參數中...</p>
+                </div>
+
+                <form id="parametersForm" style="display: none;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="min_volume_shares">📈 最低成交張數</label>
+                            <input type="number" id="min_volume_shares" name="min_volume_shares" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="min_volume_ratio">📊 最低量比</label>
+                            <input type="number" step="0.1" id="min_volume_ratio" name="min_volume_ratio" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="min_money_flow">💰 最低資金流向 (%)</label>
+                            <input type="number" step="0.1" id="min_money_flow" name="min_money_flow" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="take_profit_pct">🎯 停利百分比 (%)</label>
+                            <input type="number" step="0.1" id="take_profit_pct" name="take_profit_pct" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="stop_loss_pct">🛡️ 停損百分比 (%)</label>
+                            <input type="number" step="0.1" id="stop_loss_pct" name="stop_loss_pct" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="per_order_value">💵 單筆下單金額</label>
+                            <input type="number" id="per_order_value" name="per_order_value" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="max_total_position">🏦 最大總倉位</label>
+                            <input type="number" id="max_total_position" name="max_total_position" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="max_daily_trades">📅 單日最大交易次數</label>
+                            <input type="number" id="max_daily_trades" name="max_daily_trades" required>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px;">
+                        <button type="submit" class="btn btn-primary">💾 更新參數</button>
+                    </div>
+                </form>
+
+                <!-- 當前參數值顯示 -->
+                <div class="current-values">
+                    <h3>📋 當前參數值</h3>
+                    <pre id="currentParameters">載入中...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = '/api';
+        let currentParameters = {};
+
+        // 載入參數
+        async function loadParameters() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/trading/parameters`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentParameters = data.data;
+                    populateForm(data.data);
+                    updateCurrentParametersDisplay(data.data);
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.getElementById('parametersForm').style.display = 'block';
+                } else {
+                    showAlert('載入參數失敗: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('網路錯誤: ' + error.message, 'danger');
+            }
+        }
+
+        // 填充表單
+        function populateForm(parameters) {
+            for (const [key, value] of Object.entries(parameters)) {
+                const input = document.getElementById(key);
+                if (input) {
+                    input.value = value;
+                }
+            }
+        }
+
+        // 更新當前參數顯示
+        function updateCurrentParametersDisplay(parameters) {
+            document.getElementById('currentParameters').textContent = JSON.stringify(parameters, null, 2);
+        }
+
+        // 更新參數
+        async function updateParameters(formData) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/trading/parameters`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentParameters = data.data;
+                    updateCurrentParametersDisplay(data.data);
+                    showAlert('參數更新成功！', 'success');
+                } else {
+                    showAlert('參數更新失敗: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('網路錯誤: ' + error.message, 'danger');
+            }
+        }
+
+        // 啟動策略
+        async function startStrategy() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/strategy/start`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('策略引擎已啟動', 'success');
+                    refreshStatus();
+                } else {
+                    showAlert('啟動失敗: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('網路錯誤: ' + error.message, 'danger');
+            }
+        }
+
+        // 停止策略
+        async function stopStrategy() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/strategy/stop`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('策略引擎已停止', 'success');
+                    refreshStatus();
+                } else {
+                    showAlert('停止失敗: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('網路錯誤: ' + error.message, 'danger');
+            }
+        }
+
+        // 刷新狀態
+        async function refreshStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/strategy/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const isRunning = data.data.is_running;
+                    const statusDot = document.getElementById('statusDot');
+                    const statusText = document.getElementById('statusText');
+                    
+                    if (isRunning) {
+                        statusDot.style.background = '#28a745';
+                        statusText.textContent = '策略引擎運行中';
+                    } else {
+                        statusDot.style.background = '#dc3545';
+                        statusText.textContent = '策略引擎已停止';
+                    }
+                }
+            } catch (error) {
+                console.error('刷新狀態失敗:', error);
+            }
+        }
+
+        // 顯示提示訊息
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            const content = document.querySelector('.content');
+            content.insertBefore(alertDiv, content.firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // 表單提交處理
+        document.getElementById('parametersForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const parameters = {};
+            
+            for (const [key, value] of formData.entries()) {
+                if (key.includes('pct') || key.includes('ratio') || key.includes('flow')) {
+                    parameters[key] = parseFloat(value);
+                } else {
+                    parameters[key] = parseInt(value);
+                }
+            }
+            
+            updateParameters(parameters);
+        });
+
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadParameters();
+            refreshStatus();
+            
+            // 每30秒自動刷新狀態
+            setInterval(refreshStatus, 30000);
+        });
+    </script>
+</body>
+</html>
+
