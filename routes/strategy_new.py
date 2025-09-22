@@ -9,7 +9,7 @@ import random
 
 # 導入新的策略引擎
 from services.strategy_engine_new import StrategyEngine
-from services.yahoo_finance_service_simple import YahooFinanceService
+from services.yahoo_finance_robust import YahooFinanceService
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +284,49 @@ def get_stock_info(symbol):
             
     except Exception as e:
         logger.error(f"獲取股票資訊錯誤: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@strategy_bp.route('/trading-hours', methods=['GET'])
+def get_trading_hours():
+    """獲取台股交易時間狀態"""
+    try:
+        trading_status = yahoo_service.get_trading_status()
+        
+        return jsonify({
+            'success': True,
+            'data': trading_status
+        })
+        
+    except Exception as e:
+        logger.error(f"獲取交易時間狀態錯誤: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@strategy_bp.route('/market-status', methods=['GET'])
+def get_market_status():
+    """獲取市場狀態（包含交易時間和系統狀態）"""
+    try:
+        trading_status = yahoo_service.get_trading_status()
+        strategy_status = strategy_engine.get_status()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'trading_hours': trading_status,
+                'strategy_status': strategy_status,
+                'system_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'can_trade': trading_status.get('is_trading_hours', False) and strategy_status.get('is_running', False)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"獲取市場狀態錯誤: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
