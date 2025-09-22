@@ -24,6 +24,8 @@ class StrategyEngine:
         self.risk_manager = risk_manager
         self.signal_processor = signal_processor
         self.is_running = False
+        self.strategy_type = 'type1'  # 默認策略類型
+        self.start_time = None
     
     def load_trading_parameters(self) -> Optional[TradingParameters]:
         """載入交易參數"""
@@ -381,12 +383,13 @@ class StrategyEngine:
     def start(self):
         """啟動策略引擎"""
         self.is_running = True
-        logger.info("Strategy engine started")
+        self.start_time = datetime.now().isoformat()
+        logger.info(f"Strategy engine started with strategy type: {self.strategy_type}")
         
         # 記錄啟動日誌
         log = SystemLog(
             level='INFO',
-            message='策略引擎已啟動',
+            message=f'策略引擎已啟動 - {self.strategy_type}',
             module='strategy_engine'
         )
         db.session.add(log)

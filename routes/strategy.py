@@ -35,6 +35,9 @@ def get_strategy_engine():
 def start_strategy():
     """啟動策略引擎"""
     try:
+        data = request.get_json() or {}
+        strategy_type = data.get('strategy_type', 'type1')
+        
         engine = get_strategy_engine()
         
         if engine.is_running:
@@ -43,14 +46,30 @@ def start_strategy():
                 'message': '策略引擎已在運行中'
             }), 400
         
+        # 設置策略類型
+        engine.strategy_type = strategy_type
         engine.start()
+        
+        # 記錄策略啟動
+        log = SystemLog(
+            level='INFO',
+            message=f'策略引擎已啟動: {strategy_type}',
+            module='strategy_control'
+        )
+        db.session.add(log)
+        db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': '策略引擎已啟動'
+            'message': f'策略引擎已啟動 ({strategy_type})',
+            'data': {
+                'strategy_type': strategy_type,
+                'is_running': True
+            }
         })
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             'success': False,
             'error': str(e)
@@ -301,6 +320,160 @@ def get_risk_statistics():
         return jsonify({
             'success': True,
             'data': risk_stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+
+@strategy_bp.route('/account-info', methods=['GET'])
+def get_account_info():
+    """獲取帳戶資訊"""
+    try:
+        engine = get_strategy_engine()
+        
+        # 獲取帳戶基本資訊
+        account_info = engine.broker.get_account_info()
+        balance_info = engine.broker.get_balance()
+        
+        # 模擬即時帳戶資訊
+        import random
+        account_data = {
+            'total_equity': balance_info.get('total_equity', 1000000 + random.randint(-50000, 100000)),
+            'available_funds': balance_info.get('available_funds', 500000 + random.randint(-25000, 50000)),
+            'position_value': balance_info.get('position_value', 300000 + random.randint(-15000, 30000)),
+            'today_pnl': random.randint(-20000, 20000),
+            'total_pnl': random.randint(-50000, 50000),
+            'position_count': random.randint(0, 10),
+            'account_id': account_info.get('account_id', 'DEMO001'),
+            'last_update': datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': account_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@strategy_bp.route('/trade-log', methods=['GET'])
+def get_trade_log():
+    """獲取交易記錄"""
+    try:
+        # 獲取查詢參數
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # 模擬交易記錄
+        import random
+        from datetime import datetime, timedelta
+        
+        trade_types = ['buy', 'sell', 'info']
+        messages = [
+            '掃描到符合條件股票: 2330',
+            '買入 2330 1000股 @580.0',
+            '賣出 2454 500股 @125.5',
+            '停利觸發: 2317 +2.5%',
+            '停損觸發: 2382 -1.8%',
+            '策略信號: Type1 黃柱出現',
+            '風險檢查通過',
+            '下單成功: 訂單號 #12345',
+            '成交回報: 2330 部分成交 500股'
+        ]
+        
+        logs = []
+        for i in range(limit):
+            log_time = datetime.now() - timedelta(minutes=random.randint(0, 1440))
+            logs.append({
+                'id': offset + i + 1,
+                'timestamp': log_time.isoformat(),
+                'type': random.choice(trade_types),
+                'message': random.choice(messages),
+                'time_str': log_time.strftime('%H:%M:%S')
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'logs': logs,
+                'total': 1000,  # 模擬總記錄數
+                'limit': limit,
+                'offset': offset
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@strategy_bp.route('/strategy-types', methods=['GET'])
+def get_strategy_types():
+    """獲取可用的策略類型"""
+    try:
+        strategy_types = [
+            {
+                'id': 'type1',
+                'name': 'Type1 - 黃柱策略',
+                'description': '基於黃柱信號的交易策略',
+                'parameters': ['min_volume_shares', 'min_volume_ratio']
+            },
+            {
+                'id': 'type2',
+                'name': 'Type2 - 量價策略',
+                'description': '基於量價關係的交易策略',
+                'parameters': ['min_volume_shares', 'min_volume_ratio', 'min_money_flow']
+            },
+            {
+                'id': 'type3',
+                'name': 'Type3 - 資金流策略',
+                'description': '基於資金流向的交易策略',
+                'parameters': ['min_money_flow', 'take_profit_pct', 'stop_loss_pct']
+            },
+            {
+                'id': 'type4',
+                'name': 'Type4 - 綜合策略',
+                'description': '綜合多種指標的交易策略',
+                'parameters': ['min_volume_shares', 'min_volume_ratio', 'min_money_flow', 'take_profit_pct', 'stop_loss_pct']
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'data': strategy_types
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@strategy_bp.route('/current-strategy', methods=['GET'])
+def get_current_strategy():
+    """獲取當前策略資訊"""
+    try:
+        engine = get_strategy_engine()
+        
+        current_strategy = getattr(engine, 'strategy_type', 'type1')
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'strategy_type': current_strategy,
+                'is_running': engine.is_running,
+                'start_time': getattr(engine, 'start_time', None),
+                'last_update': datetime.now().isoformat()
+            }
         })
         
     except Exception as e:

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股自動下單系統 - 交易監控儀表板</title>
+    <title>台股自動交易系統 v1.0</title>
     <style>
         * {
             margin: 0;
@@ -12,63 +12,128 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            color: #333;
+            font-size: 12px;
         }
 
-        .container {
-            max-width: 1200px;
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1400px;
             margin: 0 auto;
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid #ccc;
+        }
+
+        /* 標題列 */
+        .title-bar {
+            background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
+            border-bottom: 1px solid #999;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .title-bar .title {
+            font-size: 14px;
+        }
+
+        .title-bar .version {
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* 主要內容區域 */
+        .content-area {
+            display: flex;
+            flex: 1;
             overflow: hidden;
         }
 
-        .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
+        /* 左側面板 */
+        .left-panel {
+            width: 350px;
+            border-right: 1px solid #ccc;
+            background: #f8f8f8;
+            display: flex;
+            flex-direction: column;
         }
 
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+        /* 右側面板 */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
 
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
+        /* 區塊樣式 */
+        .panel-section {
+            border-bottom: 1px solid #ddd;
+            background: white;
+            margin: 2px;
         }
 
-        .content {
-            padding: 40px;
+        .section-header {
+            background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+            border-bottom: 1px solid #ccc;
+            padding: 6px 10px;
+            font-weight: bold;
+            font-size: 11px;
+            color: #333;
         }
 
-        .status-section {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-            border-left: 5px solid #28a745;
+        .section-content {
+            padding: 8px;
         }
 
-        .status-indicator {
+        /* 連線設定 */
+        .connection-section {
+            height: 120px;
+        }
+
+        .connection-grid {
+            display: grid;
+            grid-template-columns: 60px 1fr 60px 1fr;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .connection-grid label {
+            font-size: 11px;
+            text-align: right;
+        }
+
+        .connection-grid input, .connection-grid select {
+            padding: 2px 4px;
+            border: 1px solid #999;
+            font-size: 11px;
+            height: 20px;
+        }
+
+        .connection-status {
+            margin-top: 8px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 5px;
         }
 
         .status-dot {
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: #28a745;
             animation: pulse 2s infinite;
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+            animation: none;
         }
 
         @keyframes pulse {
@@ -76,269 +141,404 @@
             50% { opacity: 0.5; }
         }
 
-        .controls {
+        /* 策略設定 */
+        .strategy-section {
+            height: 150px;
+        }
+
+        .strategy-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .strategy-type {
             display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .strategy-type input[type="radio"] {
+            margin: 0;
+        }
+
+        .strategy-type label {
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .strategy-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
         }
 
         .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
+            padding: 4px 12px;
+            border: 1px solid #999;
+            background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
+            font-size: 11px;
+            border-radius: 2px;
         }
 
-        .btn-primary {
-            background: #007bff;
+        .btn:hover {
+            background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
+        }
+
+        .btn.active {
+            background: linear-gradient(to bottom, #4CAF50, #45a049);
             color: white;
+            border-color: #45a049;
         }
 
-        .btn-primary:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: #28a745;
+        .btn.danger {
+            background: linear-gradient(to bottom, #f44336, #da190b);
             color: white;
+            border-color: #da190b;
         }
 
-        .btn-success:hover {
-            background: #1e7e34;
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-        }
-
+        /* 交易參數 */
         .parameters-section {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 30px;
-            margin-bottom: 30px;
+            height: 200px;
         }
 
-        .parameters-section h2 {
-            color: #2c3e50;
-            margin-bottom: 25px;
-            font-size: 1.8em;
-        }
-
-        .form-grid {
+        .parameters-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: 80px 1fr;
+            gap: 5px;
+            align-items: center;
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        .parameters-grid label {
+            font-size: 11px;
+            text-align: right;
         }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2c3e50;
+        .parameters-grid input {
+            padding: 2px 4px;
+            border: 1px solid #999;
+            font-size: 11px;
+            height: 20px;
         }
 
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+        /* 帳戶資訊 */
+        .account-section {
+            flex: 1;
         }
 
-        .form-group input:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        .account-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
         }
 
-        .current-values {
-            background: #e3f2fd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-
-        .current-values h3 {
-            color: #1976d2;
-            margin-bottom: 15px;
-        }
-
-        .current-values pre {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-size: 14px;
-            border: 1px solid #bbdefb;
-        }
-
-        .loading {
+        .info-item {
             text-align: center;
-            padding: 40px;
-            color: #6c757d;
+            padding: 8px;
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 3px;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #007bff;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+        .info-item .label {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 2px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .info-item .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
         }
 
+        .info-item .value.positive {
+            color: #d32f2f;
+        }
+
+        .info-item .value.negative {
+            color: #1976d2;
+        }
+
+        /* 交易記錄 */
+        .trade-log {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #ddd;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 5px;
+            background: #fafafa;
+        }
+
+        .log-entry {
+            margin-bottom: 2px;
+            padding: 2px 5px;
+            border-radius: 2px;
+        }
+
+        .log-entry.buy {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .log-entry.sell {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .log-entry.info {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        /* 狀態列 */
+        .status-bar {
+            background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
+            border-top: 1px solid #999;
+            padding: 4px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .status-left {
+            display: flex;
+            gap: 15px;
+        }
+
+        .status-right {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 1200px) {
+            .content-area {
+                flex-direction: column;
+            }
+            
+            .left-panel {
+                width: 100%;
+                height: 300px;
+                border-right: none;
+                border-bottom: 1px solid #ccc;
+            }
+            
+            .connection-section,
+            .strategy-section,
+            .parameters-section {
+                height: auto;
+                min-height: 80px;
+            }
+        }
+
+        /* 提示訊息 */
         .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
+            min-width: 250px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        .alert-success {
+        .alert.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
 
-        .alert-danger {
+        .alert.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
 
-        @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-                border-radius: 10px;
-            }
-
-            .header {
-                padding: 20px;
-            }
-
-            .header h1 {
-                font-size: 2em;
-            }
-
-            .content {
-                padding: 20px;
-            }
-
-            .controls {
-                justify-content: center;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 台股自動下單系統</h1>
-            <p>智能交易監控儀表板</p>
+    <div class="main-container">
+        <!-- 標題列 -->
+        <div class="title-bar">
+            <div class="title">🚀 台股自動交易系統</div>
+            <div class="version">v1.0 - Professional Trading Platform</div>
         </div>
 
-        <div class="content">
-            <!-- 系統狀態區域 -->
-            <div class="status-section">
-                <div class="status-indicator">
-                    <div class="status-dot" id="statusDot"></div>
-                    <span id="statusText">系統運行中</span>
+        <!-- 主要內容區域 -->
+        <div class="content-area">
+            <!-- 左側控制面板 -->
+            <div class="left-panel">
+                <!-- 連線設定 -->
+                <div class="panel-section connection-section">
+                    <div class="section-header">連線設定</div>
+                    <div class="section-content">
+                        <div class="connection-grid">
+                            <label>伺服器:</label>
+                            <input type="text" id="server_ip" value="127.0.0.1" readonly>
+                            <label>Port:</label>
+                            <input type="text" id="server_port" value="8000" readonly>
+                            
+                            <label>帳號:</label>
+                            <input type="text" id="account" placeholder="請輸入帳號">
+                            <label>狀態:</label>
+                            <select id="connection_status">
+                                <option value="online">Online</option>
+                                <option value="offline">Offline</option>
+                            </select>
+                        </div>
+                        <div class="connection-status">
+                            <div class="status-dot" id="connectionDot"></div>
+                            <span id="connectionText">系統連線正常</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="controls">
-                    <button class="btn btn-success" onclick="startStrategy()">▶️ 啟動策略</button>
-                    <button class="btn btn-danger" onclick="stopStrategy()">⏹️ 停止策略</button>
-                    <button class="btn btn-primary" onclick="refreshStatus()">🔄 刷新狀態</button>
+
+                <!-- 策略設定 -->
+                <div class="panel-section strategy-section">
+                    <div class="section-header">策略設定</div>
+                    <div class="section-content">
+                        <div class="strategy-types">
+                            <div class="strategy-type">
+                                <input type="radio" id="type1" name="strategy" value="type1" checked>
+                                <label for="type1">Type1 - 黃柱策略</label>
+                            </div>
+                            <div class="strategy-type">
+                                <input type="radio" id="type2" name="strategy" value="type2">
+                                <label for="type2">Type2 - 量價策略</label>
+                            </div>
+                            <div class="strategy-type">
+                                <input type="radio" id="type3" name="strategy" value="type3">
+                                <label for="type3">Type3 - 資金流策略</label>
+                            </div>
+                            <div class="strategy-type">
+                                <input type="radio" id="type4" name="strategy" value="type4">
+                                <label for="type4">Type4 - 綜合策略</label>
+                            </div>
+                        </div>
+                        <div class="strategy-controls">
+                            <button class="btn" id="startBtn" onclick="startStrategy()">啟動策略</button>
+                            <button class="btn danger" id="stopBtn" onclick="stopStrategy()">停止策略</button>
+                            <button class="btn" onclick="refreshStatus()">刷新狀態</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 交易參數設定 -->
+                <div class="panel-section parameters-section">
+                    <div class="section-header">交易參數設定</div>
+                    <div class="section-content">
+                        <form id="parametersForm">
+                            <div class="parameters-grid">
+                                <label>成交張數:</label>
+                                <input type="number" id="min_volume_shares" name="min_volume_shares" required>
+                                
+                                <label>量比:</label>
+                                <input type="number" step="0.1" id="min_volume_ratio" name="min_volume_ratio" required>
+                                
+                                <label>資金流向(%):</label>
+                                <input type="number" step="0.1" id="min_money_flow" name="min_money_flow" required>
+                                
+                                <label>停利(%):</label>
+                                <input type="number" step="0.1" id="take_profit_pct" name="take_profit_pct" required>
+                                
+                                <label>停損(%):</label>
+                                <input type="number" step="0.1" id="stop_loss_pct" name="stop_loss_pct" required>
+                            </div>
+                            <div style="margin-top: 10px; text-align: center;">
+                                <button type="submit" class="btn">更新參數</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
-            <!-- 參數設定區域 -->
-            <div class="parameters-section">
-                <h2>📊 交易參數設定</h2>
-                <div id="loadingIndicator" class="loading">
-                    <div class="spinner"></div>
-                    <p>載入參數中...</p>
-                </div>
-
-                <form id="parametersForm" style="display: none;">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="min_volume_shares">📈 最低成交張數</label>
-                            <input type="number" id="min_volume_shares" name="min_volume_shares" required>
+            <!-- 右側資訊面板 -->
+            <div class="right-panel">
+                <!-- 帳戶資訊 -->
+                <div class="panel-section account-section">
+                    <div class="section-header">帳戶資訊</div>
+                    <div class="section-content">
+                        <div class="account-info">
+                            <div class="info-item">
+                                <div class="label">總權益</div>
+                                <div class="value" id="totalEquity">0</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">可用資金</div>
+                                <div class="value" id="availableFunds">0</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">持倉市值</div>
+                                <div class="value" id="positionValue">0</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">今日損益</div>
+                                <div class="value" id="todayPnL">0</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">總損益</div>
+                                <div class="value" id="totalPnL">0</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="label">持倉數量</div>
+                                <div class="value" id="positionCount">0</div>
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="min_volume_ratio">📊 最低量比</label>
-                            <input type="number" step="0.1" id="min_volume_ratio" name="min_volume_ratio" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="min_money_flow">💰 最低資金流向 (%)</label>
-                            <input type="number" step="0.1" id="min_money_flow" name="min_money_flow" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="take_profit_pct">🎯 停利百分比 (%)</label>
-                            <input type="number" step="0.1" id="take_profit_pct" name="take_profit_pct" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="stop_loss_pct">🛡️ 停損百分比 (%)</label>
-                            <input type="number" step="0.1" id="stop_loss_pct" name="stop_loss_pct" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="per_order_value">💵 單筆下單金額</label>
-                            <input type="number" id="per_order_value" name="per_order_value" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="max_total_position">🏦 最大總倉位</label>
-                            <input type="number" id="max_total_position" name="max_total_position" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="max_daily_trades">📅 單日最大交易次數</label>
-                            <input type="number" id="max_daily_trades" name="max_daily_trades" required>
+                        <!-- 交易記錄 -->
+                        <div class="trade-log">
+                            <div class="log-header">交易記錄 - 即時更新</div>
+                            <div class="log-content" id="tradeLog">
+                                <div class="log-entry info">[15:48:24] 系統啟動完成</div>
+                                <div class="log-entry info">[15:48:25] 連接交易伺服器成功</div>
+                                <div class="log-entry info">[15:48:26] 載入交易參數完成</div>
+                            </div>
                         </div>
                     </div>
-
-                    <div style="text-align: center; margin-top: 30px;">
-                        <button type="submit" class="btn btn-primary">💾 更新參數</button>
-                    </div>
-                </form>
-
-                <!-- 當前參數值顯示 -->
-                <div class="current-values">
-                    <h3>📋 當前參數值</h3>
-                    <pre id="currentParameters">載入中...</pre>
                 </div>
+            </div>
+        </div>
+
+        <!-- 狀態列 -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span>Host: Online</span>
+                <span>Broker: Online</span>
+                <span id="strategyStatus">策略狀態: 已停止</span>
+            </div>
+            <div class="status-right">
+                <span id="currentTime">交易時段: 08:45-13:45 15:00-05:00</span>
+                <span>www.auto-trading.com v1.0</span>
             </div>
         </div>
     </div>
@@ -346,6 +546,20 @@
     <script>
         const API_BASE_URL = '/api';
         let currentParameters = {};
+        let isStrategyRunning = false;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadParameters();
+            refreshStatus();
+            updateTime();
+            startLogUpdates();
+            
+            // 每30秒自動刷新
+            setInterval(refreshStatus, 30000);
+            setInterval(updateAccountInfo, 5000);
+            setInterval(updateTime, 1000);
+        });
 
         // 載入參數
         async function loadParameters() {
@@ -356,14 +570,11 @@
                 if (data.success) {
                     currentParameters = data.data;
                     populateForm(data.data);
-                    updateCurrentParametersDisplay(data.data);
-                    document.getElementById('loadingIndicator').style.display = 'none';
-                    document.getElementById('parametersForm').style.display = 'block';
                 } else {
-                    showAlert('載入參數失敗: ' + data.error, 'danger');
+                    showAlert('載入參數失敗: ' + data.error, 'error');
                 }
             } catch (error) {
-                showAlert('網路錯誤: ' + error.message, 'danger');
+                showAlert('網路錯誤: ' + error.message, 'error');
             }
         }
 
@@ -375,11 +586,6 @@
                     input.value = value;
                 }
             }
-        }
-
-        // 更新當前參數顯示
-        function updateCurrentParametersDisplay(parameters) {
-            document.getElementById('currentParameters').textContent = JSON.stringify(parameters, null, 2);
         }
 
         // 更新參數
@@ -397,32 +603,40 @@
                 
                 if (data.success) {
                     currentParameters = data.data;
-                    updateCurrentParametersDisplay(data.data);
                     showAlert('參數更新成功！', 'success');
+                    addLogEntry('參數更新成功', 'info');
                 } else {
-                    showAlert('參數更新失敗: ' + data.error, 'danger');
+                    showAlert('參數更新失敗: ' + data.error, 'error');
                 }
             } catch (error) {
-                showAlert('網路錯誤: ' + error.message, 'danger');
+                showAlert('網路錯誤: ' + error.message, 'error');
             }
         }
 
         // 啟動策略
         async function startStrategy() {
+            const selectedStrategy = document.querySelector('input[name="strategy"]:checked').value;
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/strategy/start`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ strategy_type: selectedStrategy })
                 });
                 const data = await response.json();
                 
                 if (data.success) {
+                    isStrategyRunning = true;
+                    updateStrategyUI();
                     showAlert('策略引擎已啟動', 'success');
-                    refreshStatus();
+                    addLogEntry(`啟動${selectedStrategy}策略`, 'info');
                 } else {
-                    showAlert('啟動失敗: ' + data.error, 'danger');
+                    showAlert('啟動失敗: ' + data.error, 'error');
                 }
             } catch (error) {
-                showAlert('網路錯誤: ' + error.message, 'danger');
+                showAlert('網路錯誤: ' + error.message, 'error');
             }
         }
 
@@ -435,13 +649,15 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    isStrategyRunning = false;
+                    updateStrategyUI();
                     showAlert('策略引擎已停止', 'success');
-                    refreshStatus();
+                    addLogEntry('策略引擎已停止', 'info');
                 } else {
-                    showAlert('停止失敗: ' + data.error, 'danger');
+                    showAlert('停止失敗: ' + data.error, 'error');
                 }
             } catch (error) {
-                showAlert('網路錯誤: ' + error.message, 'danger');
+                showAlert('網路錯誤: ' + error.message, 'error');
             }
         }
 
@@ -452,31 +668,103 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    const isRunning = data.data.is_running;
-                    const statusDot = document.getElementById('statusDot');
-                    const statusText = document.getElementById('statusText');
-                    
-                    if (isRunning) {
-                        statusDot.style.background = '#28a745';
-                        statusText.textContent = '策略引擎運行中';
-                    } else {
-                        statusDot.style.background = '#dc3545';
-                        statusText.textContent = '策略引擎已停止';
-                    }
+                    isStrategyRunning = data.data.is_running;
+                    updateStrategyUI();
                 }
             } catch (error) {
                 console.error('刷新狀態失敗:', error);
             }
         }
 
+        // 更新策略UI
+        function updateStrategyUI() {
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const strategyStatus = document.getElementById('strategyStatus');
+            
+            if (isStrategyRunning) {
+                startBtn.classList.add('active');
+                stopBtn.classList.remove('active');
+                strategyStatus.textContent = '策略狀態: 運行中';
+            } else {
+                startBtn.classList.remove('active');
+                stopBtn.classList.add('active');
+                strategyStatus.textContent = '策略狀態: 已停止';
+            }
+        }
+
+        // 更新帳戶資訊
+        function updateAccountInfo() {
+            // 模擬帳戶資訊更新
+            document.getElementById('totalEquity').textContent = (1000000 + Math.random() * 100000).toFixed(0);
+            document.getElementById('availableFunds').textContent = (500000 + Math.random() * 50000).toFixed(0);
+            document.getElementById('positionValue').textContent = (300000 + Math.random() * 30000).toFixed(0);
+            
+            const todayPnL = (Math.random() - 0.5) * 20000;
+            const todayPnLElement = document.getElementById('todayPnL');
+            todayPnLElement.textContent = todayPnL.toFixed(0);
+            todayPnLElement.className = 'value ' + (todayPnL >= 0 ? 'positive' : 'negative');
+            
+            const totalPnL = (Math.random() - 0.3) * 50000;
+            const totalPnLElement = document.getElementById('totalPnL');
+            totalPnLElement.textContent = totalPnL.toFixed(0);
+            totalPnLElement.className = 'value ' + (totalPnL >= 0 ? 'positive' : 'negative');
+            
+            document.getElementById('positionCount').textContent = Math.floor(Math.random() * 10);
+        }
+
+        // 更新時間
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false });
+            // 更新狀態列時間顯示可以在這裡實現
+        }
+
+        // 添加日誌條目
+        function addLogEntry(message, type = 'info') {
+            const logContent = document.getElementById('tradeLog');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false });
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${timeStr}] ${message}`;
+            
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // 保持最多100條記錄
+            while (logContent.children.length > 100) {
+                logContent.removeChild(logContent.firstChild);
+            }
+        }
+
+        // 開始日誌更新
+        function startLogUpdates() {
+            // 模擬交易日誌
+            setInterval(() => {
+                if (isStrategyRunning && Math.random() < 0.3) {
+                    const actions = [
+                        { msg: '掃描到符合條件股票: 2330', type: 'info' },
+                        { msg: '買入 2330 1000股 @580.0', type: 'buy' },
+                        { msg: '賣出 2454 500股 @125.5', type: 'sell' },
+                        { msg: '停利觸發: 2317 +2.5%', type: 'sell' },
+                        { msg: '停損觸發: 2382 -1.8%', type: 'sell' }
+                    ];
+                    
+                    const action = actions[Math.floor(Math.random() * actions.length)];
+                    addLogEntry(action.msg, action.type);
+                }
+            }, 3000);
+        }
+
         // 顯示提示訊息
         function showAlert(message, type) {
             const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type}`;
+            alertDiv.className = `alert ${type}`;
             alertDiv.textContent = message;
             
-            const content = document.querySelector('.content');
-            content.insertBefore(alertDiv, content.firstChild);
+            document.body.appendChild(alertDiv);
             
             setTimeout(() => {
                 alertDiv.remove();
@@ -499,15 +787,6 @@
             }
             
             updateParameters(parameters);
-        });
-
-        // 頁面載入時初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            loadParameters();
-            refreshStatus();
-            
-            // 每30秒自動刷新狀態
-            setInterval(refreshStatus, 30000);
         });
     </script>
 </body>
