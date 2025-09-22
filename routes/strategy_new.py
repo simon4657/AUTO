@@ -9,7 +9,7 @@ import random
 
 # 導入新的策略引擎
 from services.strategy_engine_new import StrategyEngine
-from services.yahoo_finance_service import YahooFinanceService
+from services.yahoo_finance_service_simple import YahooFinanceService
 
 logger = logging.getLogger(__name__)
 
