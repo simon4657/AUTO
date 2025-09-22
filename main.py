@@ -9,7 +9,7 @@ from models.user import db
 from models.trading import TradingParameters, Position, TradeRecord, SystemLog, SignalHistory
 from routes.user import user_bp
 from routes.trading import trading_bp
-from routes.strategy import strategy_bp
+from routes.strategy_new import strategy_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
