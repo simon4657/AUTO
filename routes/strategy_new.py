@@ -1,5 +1,5 @@
 """
-策略相關路由 - 整合Yahoo Finance實際數據
+策略相關路由 - 整合Yahoo Finance實際數據和交易時間管理
 """
 
 from flask import Blueprint, request, jsonify
@@ -9,7 +9,8 @@ import random
 
 # 導入新的策略引擎
 from services.strategy_engine_new import StrategyEngine
-from services.yahoo_finance_robust import YahooFinanceService
+from services.yahoo_finance_fixed import YahooFinanceService
+from services.trading_time_manager import TradingTimeManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ strategy_bp = Blueprint('strategy', __name__)
 # 全局策略引擎實例
 strategy_engine = StrategyEngine()
 yahoo_service = YahooFinanceService()
+trading_time_manager = TradingTimeManager()
 
 @strategy_bp.route('/start', methods=['POST'])
 def start_strategy():
@@ -26,18 +28,25 @@ def start_strategy():
         data = request.get_json() or {}
         strategy_type = data.get('strategy_type', 'type1')
         
+        # 檢查交易時間
+        can_trade, reason = trading_time_manager.should_allow_trading(strategy_type)
+        trading_status = trading_time_manager.get_trading_status()
+        
         # 設定策略類型
         strategy_engine.set_strategy_type(strategy_type)
         
-        # 啟動策略
+        # 啟動策略（包含交易時間資訊）
         success = strategy_engine.start()
         
         if success:
             return jsonify({
                 'success': True,
-                'message': f'{strategy_type.upper()}策略已啟動',
+                'message': f'{strategy_type.upper()}策略已啟動 - {reason}',
                 'strategy_type': strategy_type,
-                'start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'trading_status': trading_status,
+                'can_trade': can_trade,
+                'reason': reason
             })
         else:
             return jsonify({
@@ -80,132 +89,211 @@ def stop_strategy():
 def get_strategy_status():
     """獲取策略狀態"""
     try:
-        status = strategy_engine.get_status()
+        # 獲取策略引擎狀態
+        engine_status = strategy_engine.get_status()
         
-        # 添加額外的狀態信息
-        status.update({
-            'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'system_status': '運行中' if status['is_running'] else '已停止'
+        # 獲取交易時間狀態
+        trading_status = trading_time_manager.get_trading_status()
+        
+        # 檢查當前策略是否可以交易
+        can_trade, reason = trading_time_manager.should_allow_trading(engine_status['strategy_type'])
+        
+        return jsonify({
+            'success': True,
+            'strategy_status': engine_status,
+            'trading_status': trading_status,
+            'can_trade': can_trade,
+            'reason': reason,
+            'market_hours': trading_time_manager.get_market_hours_info()
         })
-        
-        return jsonify(status)
         
     except Exception as e:
         logger.error(f"獲取策略狀態錯誤: {str(e)}")
         return jsonify({
-            'is_running': False,
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@strategy_bp.route('/trading-time', methods=['GET'])
+def get_trading_time_status():
+    """獲取交易時間狀態"""
+    try:
+        trading_status = trading_time_manager.get_trading_status()
+        market_hours = trading_time_manager.get_market_hours_info()
+        
+        return jsonify({
+            'success': True,
+            'trading_status': trading_status,
+            'market_hours': market_hours
+        })
+        
+    except Exception as e:
+        logger.error(f"獲取交易時間狀態錯誤: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@strategy_bp.route('/parameters', methods=['GET', 'POST'])
+def handle_strategy_parameters():
+    """處理策略參數"""
+    try:
+        if request.method == 'GET':
+            # 獲取當前參數
+            status = strategy_engine.get_status()
+            return jsonify({
+                'success': True,
+                'parameters': status['parameters']
+            })
+        
+        elif request.method == 'POST':
+            # 更新參數
+            data = request.get_json() or {}
+            strategy_engine.update_parameters(data)
+            
+            return jsonify({
+                'success': True,
+                'message': '策略參數已更新',
+                'parameters': data
+            })
+            
+    except Exception as e:
+        logger.error(f"處理策略參數錯誤: {str(e)}")
+        return jsonify({
+            'success': False,
             'error': str(e)
         }), 500
 
 @strategy_bp.route('/signals', methods=['GET'])
-def get_signals():
-    """獲取交易信號"""
+def get_current_signals():
+    """獲取當前信號"""
     try:
-        signals = strategy_engine.get_signals()
+        signals = strategy_engine.get_current_signals()
+        
         return jsonify({
             'success': True,
             'signals': signals,
-            'count': len(signals)
+            'count': len(signals),
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
         
     except Exception as e:
-        logger.error(f"獲取信號錯誤: {str(e)}")
+        logger.error(f"獲取當前信號錯誤: {str(e)}")
         return jsonify({
             'success': False,
-            'signals': [],
             'error': str(e)
         }), 500
 
-@strategy_bp.route('/yellow-stocks', methods=['GET'])
-def get_yellow_stocks():
-    """獲取黃柱股票"""
+@strategy_bp.route('/scan', methods=['POST'])
+def scan_stocks():
+    """手動掃描股票"""
     try:
-        yellow_stocks = strategy_engine.get_yellow_stocks()
+        data = request.get_json() or {}
+        strategy_type = data.get('strategy_type', 'type1')
+        max_stocks = data.get('max_stocks', 8)
+        
+        # 檢查交易時間
+        can_trade, reason = trading_time_manager.should_allow_trading(strategy_type)
+        
+        logger.info(f"開始手動掃描 - 策略: {strategy_type}, 最大數量: {max_stocks}")
+        logger.info(f"交易狀態: {reason}")
+        
+        if strategy_type.lower() == 'type1':
+            # TYPE1 黃柱策略掃描
+            results = yahoo_service.scan_yellow_column_stocks(max_stocks)
+        else:
+            # 其他策略的模擬掃描
+            results = _generate_mock_scan_results(strategy_type, max_stocks)
+        
         return jsonify({
             'success': True,
-            'stocks': yellow_stocks,
-            'count': len(yellow_stocks),
-            'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'strategy_type': strategy_type,
+            'results': results,
+            'count': len(results),
+            'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'trading_status': {
+                'can_trade': can_trade,
+                'reason': reason
+            }
         })
         
     except Exception as e:
-        logger.error(f"獲取黃柱股票錯誤: {str(e)}")
+        logger.error(f"掃描股票錯誤: {str(e)}")
         return jsonify({
             'success': False,
-            'stocks': [],
             'error': str(e)
         }), 500
 
-@strategy_bp.route('/account-info', methods=['GET'])
-def get_account_info():
-    """獲取帳戶資訊（模擬數據）"""
-    try:
-        # 模擬帳戶資訊，添加一些隨機變化
-        base_equity = 1000000
-        variation = random.randint(-50000, 50000)
-        
-        account_info = {
-            'total_equity': base_equity + variation,
-            'available_funds': int((base_equity + variation) * 0.5),
-            'position_value': int((base_equity + variation) * 0.3),
-            'today_pnl': random.randint(-10000, 15000),
-            'total_pnl': random.randint(-5000, 20000),
-            'position_count': random.randint(0, 8),
-            'last_update': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+def _generate_mock_scan_results(strategy_type: str, max_stocks: int) -> list:
+    """生成模擬掃描結果"""
+    mock_stocks = ["2330", "2317", "2454", "2881", "6505"]
+    results = []
+    
+    for i, stock_code in enumerate(mock_stocks[:max_stocks]):
+        result = {
+            'symbol': f"{stock_code}.TW",
+            'name': stock_code,
+            'close_price': round(random.uniform(100, 500), 2),
+            'price_change_pct': round(random.uniform(-5, 5), 2),
+            'volume': random.randint(10000, 100000) * 1000,
+            'volume_ratio': round(random.uniform(0.8, 3.0), 2),
+            'money_flow': round(random.uniform(-10, 20), 2),
+            'signal_strength': random.choice(['強', '中', '弱']),
+            'strategy_type': strategy_type,
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'data_source': 'mock'
         }
-        
-        return jsonify(account_info)
-        
-    except Exception as e:
-        logger.error(f"獲取帳戶資訊錯誤: {str(e)}")
-        return jsonify({
-            'error': str(e)
-        }), 500
+        results.append(result)
+    
+    return results
 
-@strategy_bp.route('/trade-log', methods=['GET'])
-def get_trade_log():
+@strategy_bp.route('/records', methods=['GET'])
+def get_trade_records():
     """獲取交易記錄"""
     try:
-        trade_records = strategy_engine.get_trade_records()
+        records = strategy_engine.get_trade_records()
         
         return jsonify({
             'success': True,
-            'records': trade_records,
-            'count': len(trade_records)
+            'records': records,
+            'count': len(records)
         })
         
     except Exception as e:
         logger.error(f"獲取交易記錄錯誤: {str(e)}")
         return jsonify({
             'success': False,
-            'records': [],
             'error': str(e)
         }), 500
 
 @strategy_bp.route('/strategy-types', methods=['GET'])
 def get_strategy_types():
-    """獲取可用策略類型"""
+    """獲取可用的策略類型"""
     try:
         strategy_types = [
             {
                 'id': 'type1',
                 'name': 'TYPE1 - 黃柱策略',
-                'description': '基於黃柱信號的交易策略，篩選符合黃柱條件的股票'
+                'description': '基於黃柱信號的交易策略，篩選符合黃柱條件的股票',
+                'trading_hours': '盤前、交易時間、盤後'
             },
             {
                 'id': 'type2',
                 'name': 'TYPE2 - 量價策略',
-                'description': '基於量價關係的交易策略，關注成交量與價格的配合'
+                'description': '基於量價關係的交易策略，關注成交量與價格的配合',
+                'trading_hours': '僅交易時間'
             },
             {
                 'id': 'type3',
                 'name': 'TYPE3 - 資金流策略',
-                'description': '基於資金流向的交易策略，追蹤主力資金動向'
+                'description': '基於資金流向的交易策略，追蹤主力資金動向',
+                'trading_hours': '僅交易時間'
             },
             {
                 'id': 'type4',
                 'name': 'TYPE4 - 綜合策略',
-                'description': '綜合多種指標的交易策略，提供全面的市場分析'
+                'description': '綜合多種指標的交易策略，提供全面的市場分析',
+                'trading_hours': '僅交易時間'
             }
         ]
         
@@ -238,97 +326,3 @@ def get_current_strategy():
             'success': False,
             'error': str(e)
         }), 500
-
-@strategy_bp.route('/update-parameters', methods=['POST'])
-def update_strategy_parameters():
-    """更新策略參數"""
-    try:
-        data = request.get_json() or {}
-        
-        # 更新策略引擎參數
-        strategy_engine.update_parameters(data)
-        
-        return jsonify({
-            'success': True,
-            'message': '策略參數已更新',
-            'parameters': strategy_engine.parameters
-        })
-        
-    except Exception as e:
-        logger.error(f"更新策略參數錯誤: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'更新參數時發生錯誤: {str(e)}'
-        }), 500
-
-@strategy_bp.route('/stock-info/<symbol>', methods=['GET'])
-def get_stock_info(symbol):
-    """獲取特定股票資訊"""
-    try:
-        # 確保股票代碼格式正確
-        if not symbol.endswith('.TW'):
-            symbol = f"{symbol}.TW"
-        
-        stock_info = yahoo_service.get_stock_realtime_info(symbol)
-        
-        if stock_info:
-            return jsonify({
-                'success': True,
-                'stock_info': stock_info
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': f'無法獲取股票 {symbol} 的資訊'
-            }), 404
-            
-    except Exception as e:
-        logger.error(f"獲取股票資訊錯誤: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@strategy_bp.route('/trading-hours', methods=['GET'])
-def get_trading_hours():
-    """獲取台股交易時間狀態"""
-    try:
-        trading_status = yahoo_service.get_trading_status()
-        
-        return jsonify({
-            'success': True,
-            'data': trading_status
-        })
-        
-    except Exception as e:
-        logger.error(f"獲取交易時間狀態錯誤: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@strategy_bp.route('/market-status', methods=['GET'])
-def get_market_status():
-    """獲取市場狀態（包含交易時間和系統狀態）"""
-    try:
-        trading_status = yahoo_service.get_trading_status()
-        strategy_status = strategy_engine.get_status()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'trading_hours': trading_status,
-                'strategy_status': strategy_status,
-                'system_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'can_trade': trading_status.get('is_trading_hours', False) and strategy_status.get('is_running', False)
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"獲取市場狀態錯誤: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-

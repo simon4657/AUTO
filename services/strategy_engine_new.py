@@ -7,7 +7,7 @@ import threading
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from .yahoo_finance_robust import YahooFinanceService
+from .yahoo_finance_fixed import YahooFinanceService
 
 logger = logging.getLogger(__name__)
 

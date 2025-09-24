@@ -1,62 +1,146 @@
-# 自動交易系統 - Render 部署指南
+# 台灣股票交易系統
 
-本指南將引導您將自動交易系統部署到 Render 平台。系統包含一個 Flask 後端和一個整合的 HTML/CSS/JS 前端。
+## 系統概述
+
+這是一個專業的台灣股票交易系統，具備實時數據獲取、多策略交易和完整的台股交易時間管理功能。
+
+## 主要功能
+
+### ✅ 修復完成的功能
+- **Yahoo Finance數據獲取**：穩定獲取台股實時數據
+- **台灣股市交易時間管理**：完整的交易時間邏輯
+- **TYPE1黃柱策略**：基於Pine Script的專業交易策略
+- **多策略支援**：TYPE1-TYPE4不同交易策略
+- **專業交易介面**：仿真專業交易軟體風格
+
+### 🔧 技術特色
+- Flask後端架構
+- Yahoo Finance API整合
+- Pine Script技術指標計算
+- 台股交易時間自動管理
+- 響應式前端介面
+
+## 快速部署
+
+### Render平台部署
+
+1. **Fork此專案到您的GitHub**
+2. **在Render Dashboard中：**
+   - 選擇 "New Web Service"
+   - 連接您的GitHub repository
+   - 使用以下設定：
+     - **Build Command:** `pip install -r requirements.txt`
+     - **Start Command:** `python main.py`
+     - **Python Version:** 3.11.0
+
+3. **環境變數設定（可選）：**
+   ```bash
+   SECRET_KEY=your-secret-key-here
+   FLASK_DEBUG=False
+   ```
+
+### 本地開發
+
+```bash
+# 1. 克隆專案
+git clone <your-repo-url>
+cd taiwan_stock_system_clean
+
+# 2. 創建虛擬環境
+python3 -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 或 venv\Scripts\activate  # Windows
+
+# 3. 安裝依賴
+pip install -r requirements.txt
+
+# 4. 啟動應用
+python main.py
+```
 
 ## 系統架構
 
-- **後端**: Flask 應用程式，提供 API 端點用於參數管理和策略控制。
-- **前端**: 整合在 Flask `static` 目錄中的單頁應用程式，提供用戶界面。
-- **數據庫**: 使用 SQLite，數據庫文件將存儲在 Render 的持久化存儲中。
+```
+taiwan_stock_system_clean/
+├── main.py                          # Flask主應用
+├── requirements.txt                 # 依賴包列表
+├── runtime.txt                      # Python版本
+├── render.yaml                      # Render部署配置
+├── services/
+│   ├── yahoo_finance_fixed.py       # 修復後的Yahoo Finance服務
+│   ├── trading_time_manager.py      # 交易時間管理器
+│   └── strategy_engine_new.py       # 策略引擎
+├── routes/
+│   └── strategy_new.py              # 策略路由
+├── static/
+│   └── index.html                   # 前端介面
+└── models/                          # 數據模型
+```
 
-## 部署步驟
+## API端點
 
-### 1. 準備您的 GitHub 倉庫
+### 策略管理
+- `POST /api/strategy/start` - 啟動策略
+- `POST /api/strategy/stop` - 停止策略
+- `GET /api/strategy/status` - 獲取策略狀態
+- `POST /api/strategy/scan` - 手動掃描股票
 
-1.  **創建一個新的 GitHub 倉庫**。
-2.  **將 `render_deployment` 目錄中的所有文件推送到您的倉庫**。確保包含以下文件：
-    - `backend/` (包含所有後端代碼)
-    - `render.yaml`
+### 交易時間
+- `GET /api/strategy/trading-time` - 獲取交易時間狀態
 
-### 2. 在 Render 上創建新服務
+### 系統狀態
+- `GET /health` - 健康檢查
 
-1.  **登錄到您的 Render 帳戶**。
-2.  點擊 **New +** > **Blueprint**。
-3.  **連接您的 GitHub 帳戶** 並選擇您剛剛創建的倉庫。
-4.  Render 將自動檢測 `render.yaml` 文件並配置服務。
+## 交易時間規則
 
-### 3. 配置服務
+### 台股交易時間
+- **上午交易：** 09:00 - 12:00
+- **午休時間：** 12:00 - 13:30
+- **下午收盤：** 13:30
+- **盤前準備：** 08:30 - 09:00
+- **盤後時間：** 13:30 - 14:30
 
-- **服務名稱**: Render 將使用 `render.yaml` 中定義的名稱 (`auto-trading-system`)。
-- **環境**: Python 環境將自動選擇。
-- **構建命令**: `pip install -r requirements.txt`
-- **啟動命令**: `python main.py`
-- **環境變量**: `SECRET_KEY` 將自動生成。
+### 策略運行規則
+- **TYPE1 黃柱策略：** 可在盤前、交易時間、盤後運行
+- **TYPE2-4 其他策略：** 僅在交易時間運行
 
-### 4. 部署
+## 使用說明
 
-點擊 **Create Blueprint**。Render 將開始構建和部署您的應用程式。部署完成後，您將獲得一個公開的 URL，例如 `https://auto-trading-system.onrender.com`。
+### 1. 訪問系統
+部署完成後，訪問您的Render URL即可使用系統。
 
-## 使用部署的應用程式
+### 2. 策略操作
+1. 選擇策略類型（TYPE1-TYPE4）
+2. 設定交易參數
+3. 點擊"啟動策略"開始運行
 
-- **訪問 URL**: 在瀏覽器中打開您的 Render URL。
-- **管理參數**: 使用前端界面更新交易參數。
-- **控制策略**: 啟動或停止交易策略。
+### 3. 監控功能
+- 實時查看策略狀態
+- 監控交易時間
+- 查看掃描結果
 
-## 健康檢查
+## 技術支援
 
-Render 將使用 `/health` 端點來監控您的應用程式的健康狀況。如果應用程式不健康，Render 將自動重啟它。
+### 常見問題
 
-## 持久化存儲
+**Q: Yahoo Finance連接失敗怎麼辦？**
+A: 系統會自動使用備用數據，確保正常運行。
 
-SQLite 數據庫文件 (`app.db`) 將存儲在 Render 的持久化存儲中，確保在重啟之間數據不會丟失。
+**Q: 策略無法啟動？**
+A: 檢查當前是否為交易時間，TYPE1策略可全天運行。
 
-## 故障排除
+**Q: 如何查看系統日誌？**
+A: 在Render Dashboard的Logs標籤中查看。
 
-- **查看日誌**: 在 Render 儀表板中查看應用程式日誌以進行調試。
-- **檢查環境變量**: 確保所有必要的環境變量都已正確設置。
-- **本地測試**: 在本地運行應用程式以重現和解決問題。
+### 版本資訊
+- **版本：** v2.0 (修復版)
+- **修復日期：** 2025年9月23日
+- **主要修復：** Yahoo Finance數據獲取、交易時間管理
 
-## 結論
+## 授權
 
-通過遵循本指南，您可以輕鬆地將自動交易系統部署到 Render 平台，並利用其自動擴展、健康檢查和持久化存儲等功能。
+本專案僅供學習和研究使用。
 
+---
+
+**注意：** 本系統為模擬交易系統，不提供實際交易功能。投資有風險，請謹慎決策。
